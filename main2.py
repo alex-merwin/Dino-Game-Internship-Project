@@ -67,12 +67,8 @@ while running:
         keys = pygame.key.get_pressed()
         if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
             player_rect.x += 5
-            if player_rect.right > 266:
-                player_rect.right = 266
-        elif keys[pygame.K_a] or keys[pygame.K_LEFT]:
-            player_rect.x -= 5
-            if player_rect.left < 0:
-                player_rect.left = 0
+            if player_rect.right > 800:
+                player_rect.right = 800
         else:
             if player_rect.left > 25:
                 player_rect.x -= 2
@@ -96,29 +92,11 @@ while running:
             egg_speed = random.randint(5, 9)
             egg_scored = False
             
-            if random.randint(1, 3) == 1 and not sky_egg_active:
-                sky_egg_active = True
-                sky_egg_rect.centerx = random.randint(int(sky_egg_rect.width / 2), 266 - int(sky_egg_rect.width / 2))
-                sky_egg_rect.top = -150
-                sky_egg_scored = False
+            
                 
         screen.blit(egg_surf, egg_rect)
 
-        if sky_egg_active:
-            if sky_egg_rect.bottom < 0:
-                pygame.draw.line(screen, "Red", (sky_egg_rect.centerx, 0), (sky_egg_rect.centerx, GROUND_Y), 2)
-                pygame.draw.polygon(screen, "Red", [(sky_egg_rect.centerx, 20), (sky_egg_rect.centerx - 10, 0), (sky_egg_rect.centerx + 10, 0)])
-
-            sky_egg_rect.y += sky_egg_speed
-            if sky_egg_rect.bottom >= 0:
-                screen.blit(egg_surf, sky_egg_rect)
-            
-            if sky_egg_rect.bottom >= GROUND_Y and not sky_egg_scored:
-                score += 1
-                sky_egg_scored = True
-                
-            if sky_egg_rect.top > 400:
-                sky_egg_active = False
+        
 
         if egg_rect.right < player_rect.left and not egg_scored:
             score += 1
