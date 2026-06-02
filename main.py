@@ -1,17 +1,64 @@
 import pygame
 import random
+import json
+import sys
 
-# Initialize Pygame and create a window
+class Leaderboard:
+    def __init__(self, filename="scores.json"):
+        self.filename = filename
+        self.scores = self.load_scores()
+    def load_scores(self):
+        try:
+            with open(self.filename, "r") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
+    def save_score(self, name, score):
+        self.scores.append({"name": name, "score": score})
+        self.scores = sorted(self.scores, key=lambda x: x["score"], reverse=True)
+        self.scores = self.scores[:5]
+        try:
+            with open(self.filename, "w") as f:
+                json.dump(self.scores, f, indent=4)
+        except IOError:
+            pass
+
+
 pygame.init()
+SCREEN_WIDTH, SCREEN_HEIGHT = 800, 400
 screen = pygame.display.set_mode((800, 400))
 clock = pygame.time.Clock()
-running = True  # Pygame main loop, kills pygame when False
+pygame.display.set_caption("Game Leaderboard")
+running = True  
 
-# Game state variables
-is_playing = True  # Whether in game or in menu
-GROUND_Y = 300  # The Y-coordinate of the ground level
-JUMP_GRAVITY_START_SPEED = -20  # The speed at which the player jumps
-players_gravity_speed = 0  # The current speed at which the player falls
+FONT = pygame.font.SysFont("Arial", 24)
+TITLE_FONT = pygame.font.SysFont("Arial", 30, bold=True)
+WHITE = (255, 255, 255)
+GOLD = (255, 215, 0)
+BLACK = (20, 20, 20)
+
+lb = Leaderboard()
+
+def draw_leaderboard():
+    title_surface = TITLE_FONT.render("TOP PLAYERS", True, GOLD)
+    screen.blit(title_surface, (530, 40))
+    start_y = 110
+    for index, entry in enumerate(lb.scores):
+        rank_text = f"{index + 1}. {entry['name']}"
+        score_text = str(entry['score'])
+
+        name_surface = FONT.render(rank_text, True, WHITE)
+        score_surface = FONT.render(score_text, True, WHITE)
+
+        screen.blit(name_surface, (480, start_y))
+        screen.blit(score_surface, (700, start_y))
+        start_y += 45
+
+
+is_playing = True  
+GROUND_Y = 300  
+JUMP_GRAVITY_START_SPEED = -20  
+players_gravity_speed = 0  
 
 score = 0
 egg_scored = False
@@ -20,30 +67,28 @@ egg_speed = 5
 sky_egg_active = False
 sky_egg_scored = False
 sky_egg_speed = 7
-sky_egg_rect = pygame.Rect(0, 0, 0, 0)
 
-# Load level assets
+score_saved = False
+player_name = ""
+
 SKY_SURF = pygame.image.load("graphics/level/sky.png").convert()
 GROUND_SURF = pygame.image.load("graphics/level/ground.png").convert()
-game_font = pygame.font.Font(pygame.font.get_default_font(), 50)
+game_font = pygame.font.Font(pygame.font.get_default_font(), 32)
 
-# Load sprite assets
 player_surf = pygame.image.load("graphics/player/player_walk_1.png").convert_alpha()
 player_rect = player_surf.get_rect(bottomleft=(25, GROUND_Y))
 egg_surf = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
 egg_rect = egg_surf.get_rect(bottomleft=(random.randint(850, 1100), GROUND_Y))
-sky_egg_rect = egg_surf.get_rect(midtop=(-100, -100))
+sky_egg_surf = pygame.transform.smoothscale(egg_surf, (int(egg_surf.get_width() * 1.7), int(egg_surf.get_height() * 1.8)))
+sky_egg_rect = sky_egg_surf.get_rect(midtop=(-100, -100))
 
 
 while running:
-    # Poll for events
     for event in pygame.event.get():
-        # pygame.QUIT --> user clicked X to close your window
         if event.type == pygame.QUIT:
             running = False
 
         elif is_playing:
-            # When player wants to jump by pressing SPACE
             if (
                 event.type == pygame.KEYDOWN
                 and event.key == pygame.K_SPACE
@@ -51,17 +96,31 @@ while running:
             ) and player_rect.bottom >= GROUND_Y:
                 players_gravity_speed = JUMP_GRAVITY_START_SPEED
         else:
-            # When player wants to play again by pressing SPACE
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                is_playing = True
-                player_rect.bottomleft = (25, GROUND_Y)
-                egg_rect.left = random.randint(850, 1100)
-                egg_speed = random.randint(5, 8)
-                sky_egg_active = False
-                sky_egg_rect.top = -100
-                score = 0
-                egg_scored = False
-                sky_egg_scored = False
+            if not score_saved:
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        if player_name.strip() == "":
+                            player_name = "Player"
+                        lb.save_score(player_name, score)
+                        score_saved = True
+                    elif event.key == pygame.K_BACKSPACE:
+                        player_name = player_name[:-1]
+                    else:
+                        if len(player_name) < 8 and event.unicode.isalnum():
+                            player_name += event.unicode
+            else:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    is_playing = True
+                    score_saved = False
+                    player_name = ""
+                    player_rect.bottomleft = (25, GROUND_Y)
+                    egg_rect.left = random.randint(850, 1100)
+                    egg_speed = random.randint(5, 8)
+                    sky_egg_active = False
+                    sky_egg_rect.top = -100
+                    score = 0
+                    egg_scored = False
+                    sky_egg_scored = False
 
     if is_playing:
         keys = pygame.key.get_pressed()
@@ -73,13 +132,9 @@ while running:
             player_rect.x -= 5
             if player_rect.left < 0:
                 player_rect.left = 0
-        else:
-            if player_rect.left > 25:
-                player_rect.x -= 2
 
-        screen.fill("purple")  # Wipe the screen
+        screen.fill("purple")  
 
-        # Blit the level assets
         screen.blit(SKY_SURF, (0, 0))
         screen.blit(GROUND_SURF, (0, GROUND_Y))
         
@@ -89,7 +144,6 @@ while running:
         pygame.draw.rect(screen, "#c0e8ec", score_rect, 10)
         screen.blit(score_surf, score_rect)
 
-        # Adjust egg's horizontal location then blit it
         egg_rect.x -= egg_speed
         if egg_rect.right <= 0:
             egg_rect.left = random.randint(800, 1050)
@@ -106,12 +160,20 @@ while running:
 
         if sky_egg_active:
             if sky_egg_rect.bottom < 0:
-                pygame.draw.line(screen, "Red", (sky_egg_rect.centerx, 0), (sky_egg_rect.centerx, GROUND_Y), 2)
-                pygame.draw.polygon(screen, "Red", [(sky_egg_rect.centerx, 20), (sky_egg_rect.centerx - 10, 0), (sky_egg_rect.centerx + 10, 0)])
+                telegraph_surface = pygame.Surface((sky_egg_rect.width, GROUND_Y), pygame.SRCALPHA)
+                telegraph_surface.fill((255, 0, 0, 80))
+                screen.blit(telegraph_surface, (sky_egg_rect.left, 0))
+                
+                pygame.draw.polygon(screen, "Red", [
+                    (sky_egg_rect.centerx, 20), 
+                    (sky_egg_rect.centerx - 15, 0), 
+                    (sky_egg_rect.centerx + 15, 0)
+                ])
 
             sky_egg_rect.y += sky_egg_speed
             if sky_egg_rect.bottom >= 0:
-                screen.blit(egg_surf, sky_egg_rect)
+                screen.blit(sky_egg_surf, sky_egg_rect)
+
             
             if sky_egg_rect.bottom >= GROUND_Y and not sky_egg_scored:
                 score += 1
@@ -124,28 +186,36 @@ while running:
             score += 1
             egg_scored = True
 
-        # Adjust player's vertical location then blit it
         players_gravity_speed += 1
         player_rect.y += players_gravity_speed
         if player_rect.bottom > GROUND_Y:
             player_rect.bottom = GROUND_Y
         screen.blit(player_surf, player_rect)
 
-        # When player collides with enemy, game ends
         if egg_rect.colliderect(player_rect) or (sky_egg_active and sky_egg_rect.bottom >= 0 and sky_egg_rect.colliderect(player_rect)):
             is_playing = False
 
-    # When game is over, display game over message
     else:
-        screen.fill("black")
+        screen.fill(BLACK)
         
-        game_over_surf = game_font.render(f"Game Over! Final Score: {score}", False, "White")
-        game_over_rect = game_over_surf.get_rect(center=(400, 200))
-        screen.blit(game_over_surf, game_over_rect)
+        game_over_surf = game_font.render("Game Over!", True, (255, 50, 50))
+        score_surf = game_font.render(f"Final Score: {score}", True, WHITE)
+        screen.blit(game_over_surf, (50, 60))
+        screen.blit(score_surf, (50, 120))
+        
+        if not score_saved:
+            prompt_surf = FONT.render("Type Name & Press ENTER:", True, GOLD)
+            name_surf = game_font.render(player_name + "|", True, WHITE)
+            screen.blit(prompt_surf, (50, 200))
+            screen.blit(name_surf, (50, 250))
+        else:
+            restart_surf = FONT.render("Press SPACE to Restart", True, (150, 150, 150))
+            screen.blit(restart_surf, (50, 220))
+            
+        draw_leaderboard()
 
-    # flip the display to put your work on screen
     pygame.display.flip()
-
-    clock.tick(60)  # Limits game loop to 60 FPS
+    clock.tick(60)  
 
 pygame.quit()
+sys.exit()
