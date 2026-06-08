@@ -1,5 +1,9 @@
 [
     {
+        "name": "a",
+        "score": 9
+    },
+    {
         "name": "b",
         "score": 5
     },
@@ -14,9 +18,5 @@
     {
         "name": "Player",
         "score": 1
-    },
-    {
-        "name": "Player",
-        "score": 0
     }
 ]
