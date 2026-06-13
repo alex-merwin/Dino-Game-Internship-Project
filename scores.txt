@@ -1,9 +1,0 @@
-mer,113
-a,106
-alex,83
-alex,45
-mer,39
-alex,29
-m,16
-a,3
-m,1
