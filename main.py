@@ -58,11 +58,10 @@ is_paused = False
 time_paused = 0
 total_time_paused = 0
 
-sky_egg_active = False
-sky_egg_speed = 7
-sky_egg_telegraph_timer = 0
-sky_egg_telegraph_x = 0
-
+sky_enemy_active = False
+sky_enemy_speed = 7
+sky_enemy_telegraph_timer = 0
+sky_enemy_telegraph_x = 0
 
 HEART_SURF = pygame.image.load("graphics/level/heart.png").convert_alpha()
 SKY_SURF = pygame.image.load("graphics/level/sky.png").convert()
@@ -87,15 +86,28 @@ animation_counter = 0
 player_surf = runningman1
 player_rect = player_surf.get_rect(bottomleft=(25, GROUND_Y))
 player_hitbox = player_rect.inflate(-32, -26)
-egg_rotation_angle = 0
-egg_surf = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
-egg_rect = egg_surf.get_rect(bottomleft=(800, GROUND_Y))
-egg_hitbox = egg_rect.inflate(-7,-7)
-egg_width = egg_surf.get_width()
-is_double_egg = False
 
-sky_egg_surf = pygame.transform.scale(egg_surf, (egg_surf.get_width() * 2, egg_surf.get_height() * 2))
-sky_egg_rect = sky_egg_surf.get_rect(midtop=(-100, -100))
+# Scaled up enemy
+enemy_surf = pygame.transform.scale(pygame.image.load("egg_1.png").convert_alpha(), (70, 70))
+enemy_rect = enemy_surf.get_rect(bottomleft=(800, GROUND_Y))
+enemy_hitbox = enemy_rect.inflate(-7,-7)
+enemy_width = enemy_surf.get_width()
+is_double_enemy = False
+
+# Sky enemy stays exactly the same size as it was before
+sky_enemy_surf = pygame.transform.scale(pygame.image.load("egg_1.png").convert_alpha(), (70, 70))
+sky_enemy_rect = sky_enemy_surf.get_rect(midtop=(-100, -100))
+
+# --- NEW FOOD/ORB LOGIC ---
+cheese_surf = pygame.transform.scale(pygame.image.load("cheese.png").convert_alpha(), (40, 40))
+bread_surf = pygame.transform.scale(pygame.image.load("bread.png").convert_alpha(), (40, 40))
+lettuce_surf = pygame.transform.scale(pygame.image.load("lettuce.png").convert_alpha(), (40, 40))
+
+food_options = [cheese_surf, bread_surf, lettuce_surf]
+current_food_surf = food_options[0]
+orb_active = False
+orb_rect = current_food_surf.get_rect(topleft=(800, 200))
+# --------------------------
 
 lives = 3
 is_invincible = False
@@ -160,10 +172,11 @@ while running:
                     is_playing = True
                     lives = 3
                     is_invincible = False
-                    egg_rect.left = 800
-                    sky_egg_active = False
-                    sky_egg_rect.top = -100
-                    sky_egg_telegraph_timer = 0
+                    enemy_rect.left = 800
+                    sky_enemy_active = False
+                    sky_enemy_rect.top = -100
+                    sky_enemy_telegraph_timer = 0
+                    orb_active = False
                     player_rect.bottomleft = (25, GROUND_Y)
                     score = 0
                     time_paused = 0
@@ -198,50 +211,65 @@ while running:
             score_rect = score_surf.get_rect(center=(400, 50))
             screen.blit(score_surf, score_rect)
 
-            egg_speed = 5 + min(score // 15, 10)
-            egg_rect.x -= egg_speed
-            if egg_rect.right <= 0:
+            enemy_speed = 5 + min(score // 15, 10)
+            enemy_rect.x -= enemy_speed
+            if enemy_rect.right <= 0:
                 score += 1
-                if is_double_egg:
+                if is_double_enemy:
                     score += 1
-                egg_rect.left = 800
-                is_double_egg = random.random() < 0.21
+                enemy_rect.left = 800
+                is_double_enemy = random.random() < 0.21
 
-            egg_rotation_angle = (egg_rotation_angle + egg_speed * 1.4) % 360
-            rotated_egg = pygame.transform.rotate(egg_surf, egg_rotation_angle)
-            rotated_rect = rotated_egg.get_rect(center=egg_rect.center)
-            screen.blit(rotated_egg, rotated_rect)
+            # Draw the enemy without rotation
+            screen.blit(enemy_surf, enemy_rect)
 
-            if is_double_egg:
-                second_center = (egg_rect.centerx + egg_width, egg_rect.centery)
-                screen.blit(rotated_egg, rotated_egg.get_rect(center=second_center))
-                egg_hitbox = pygame.Rect(0, 0, (egg_width * 2) - 4, egg_rect.height - 4)
-                egg_hitbox.center = (egg_rect.centerx + (egg_width / 2), egg_rect.centery)
+            if is_double_enemy:
+                second_center = (enemy_rect.centerx + enemy_width, enemy_rect.centery)
+                screen.blit(enemy_surf, enemy_surf.get_rect(center=second_center))
+                enemy_hitbox = pygame.Rect(0, 0, (enemy_width * 2) - 4, enemy_rect.height - 4)
+                enemy_hitbox.center = (enemy_rect.centerx + (enemy_width / 2), enemy_rect.centery)
             else:
-                egg_hitbox = pygame.Rect(0, 0, egg_width - 4, egg_rect.height - 4)
-                egg_hitbox.center = egg_rect.center
-            pygame.draw.rect(screen, "red", egg_hitbox, 2)
+                enemy_hitbox = pygame.Rect(0, 0, enemy_width - 4, enemy_rect.height - 4)
+                enemy_hitbox.center = enemy_rect.center
+            
+            if not sky_enemy_active and sky_enemy_telegraph_timer == 0 and random.random() < 0.01:
+                sky_enemy_telegraph_timer = 40
+                sky_enemy_telegraph_x = random.randint(0, 266 - sky_enemy_surf.get_width())
 
-            if not sky_egg_active and sky_egg_telegraph_timer == 0 and random.random() < 0.01:
-                sky_egg_telegraph_timer = 40
-                sky_egg_telegraph_x = random.randint(0, 266 - sky_egg_surf.get_width())
+            if sky_enemy_telegraph_timer > 0:
+                sky_enemy_telegraph_timer -= 1
+                if (sky_enemy_telegraph_timer // 5) % 2 == 0:
+                    pygame.draw.rect(screen, "red", (sky_enemy_telegraph_x, 0, sky_enemy_surf.get_width(), 400), 2)
+                if sky_enemy_telegraph_timer == 0:
+                    sky_enemy_active = True
+                    sky_enemy_rect.x = sky_enemy_telegraph_x
+                    sky_enemy_rect.top = -sky_enemy_surf.get_height()
 
-            if sky_egg_telegraph_timer > 0:
-                sky_egg_telegraph_timer -= 1
-                if (sky_egg_telegraph_timer // 5) % 2 == 0:
-                    pygame.draw.rect(screen, "red", (sky_egg_telegraph_x, 0, sky_egg_surf.get_width(), 400), 2)
-                if sky_egg_telegraph_timer == 0:
-                    sky_egg_active = True
-                    sky_egg_rect.x = sky_egg_telegraph_x
-                    sky_egg_rect.top = -sky_egg_surf.get_height()
-
-            if sky_egg_active:
-                sky_egg_rect.y += sky_egg_speed
-                screen.blit(sky_egg_surf, sky_egg_rect)
-                if sky_egg_rect.top > 400:
+            if sky_enemy_active:
+                sky_enemy_rect.y += sky_enemy_speed
+                screen.blit(sky_enemy_surf, sky_enemy_rect)
+                if sky_enemy_rect.top > 400:
                     score += 1
-                    sky_egg_active = False
-                    sky_egg_rect.top = -100
+                    sky_enemy_active = False
+                    sky_enemy_rect.top = -100
+            
+            # --- UPDATED ORB/FOOD SPAWNING LOGIC ---
+            if not orb_active and random.random() < 0.005:
+                orb_active = True
+                current_food_surf = random.choice(food_options) # Pick random food
+                orb_rect = current_food_surf.get_rect() # Make sure hitbox matches
+                orb_rect.left = 800
+                orb_rect.bottom = random.randint(150, GROUND_Y - 20)
+
+            if orb_active:
+                orb_rect.x -= enemy_speed
+                screen.blit(current_food_surf, orb_rect) # Draw the food instead of a rect
+                if orb_rect.right <= 0:
+                    orb_active = False
+                if orb_rect.colliderect(player_hitbox):
+                    score += 10
+                    orb_active = False
+            # ---------------------------------------
 
             if player_rect.bottom >= GROUND_Y:
                 animation_counter += 1
@@ -259,15 +287,14 @@ while running:
                 player_rect.bottom = GROUND_Y
             screen.blit(player_surf, player_rect)
             player_hitbox.center = player_rect.center
-            pygame.draw.rect(screen, "red", player_hitbox, 2)
 
-            if (egg_hitbox.colliderect(player_hitbox) or (sky_egg_active and sky_egg_rect.colliderect(player_hitbox))) and not is_invincible:
+            if (enemy_hitbox.colliderect(player_hitbox) or (sky_enemy_active and sky_enemy_rect.colliderect(player_hitbox))) and not is_invincible:
                 lives -= 1
                 is_invincible = True
                 invincible_timer = invincible_duration
-                if sky_egg_active and sky_egg_rect.colliderect(player_hitbox):
-                    sky_egg_active = False
-                    sky_egg_rect.top = -100
+                if sky_enemy_active and sky_enemy_rect.colliderect(player_hitbox):
+                    sky_enemy_active = False
+                    sky_enemy_rect.top = -100
                 if lives <= 0:
                     is_playing = False
                     is_entering_name = True
