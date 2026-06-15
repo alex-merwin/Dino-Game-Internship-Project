@@ -89,7 +89,7 @@ current_font_color = "Black"
 
 # Player State
 is_playing = True
-GROUND_Y = 300
+GROUND_Y = 350
 JUMP_GRAVITY_START_SPEED = -15.6
 players_gravity_speed = 0
 can_double_jump = False
@@ -115,16 +115,21 @@ HEART_SURF = pygame.image.load("graphics/level/heart.png").convert_alpha()
 SKY_SURF = pygame.image.load("graphics/level/sky.png").convert()
 current_sky = SKY_SURF
 
-GROUND_SURF_1 = pygame.image.load("graphics/level/ground.png").convert()
-GROUND_SURF_2 = pygame.image.load("graphics/level/ground.png").convert()
-ground_rect_1 = GROUND_SURF_1.get_rect(topleft = (800, GROUND_Y))
-ground_rect_2 = GROUND_SURF_2.get_rect(topleft = (0, GROUND_Y))
+# Load and scale the kitchen background to fit the screen
+KITCHEN_SURF_1 = pygame.transform.scale(pygame.image.load("kitchen.png").convert(), (800, 400))
+KITCHEN_SURF_2 = pygame.transform.scale(pygame.image.load("kitchen.png").convert(), (800, 400))
+
+# Position them side-by-side (one on screen, one waiting off-screen to the right)
+kitchen_rect_1 = KITCHEN_SURF_1.get_rect(topleft=(0, 0))
+kitchen_rect_2 = KITCHEN_SURF_2.get_rect(topleft=(800, 0))
+
+
 
 score_surf = game_font.render("SCORE?", False, "Black")
 score_rect = score_surf.get_rect(center=(400, 50))
 
 # Player Animation Frames
-player_size = (65,85)
+player_size = (80,105)
 runningman1 = pygame.transform.scale(pygame.image.load("graphics/player/runningman1.png").convert_alpha(),player_size)
 runningman2 = pygame.transform.scale(pygame.image.load("graphics/player/runningman2.png").convert_alpha(),player_size)
 runningman3 = pygame.transform.scale(pygame.image.load("graphics/player/runningman3.png").convert_alpha(),player_size)
@@ -136,7 +141,7 @@ animation_counter = 0
 
 player_surf = runningman1
 player_rect = player_surf.get_rect(bottomleft=(25, GROUND_Y))
-player_hitbox = player_rect.inflate(-32, -26)
+player_hitbox = player_rect.inflate(-40, -23)
 
 # Ground Enemy
 enemy_surf = pygame.transform.scale(pygame.image.load("egg_1.png").convert_alpha(), (70, 70))
@@ -239,19 +244,21 @@ while running:
     if is_playing:
         if not is_paused:
             time_paused = 0
-            screen.fill("purple")
-            screen.blit(current_sky, (0, 0))
             
-            # Scrolling Background
-            ground_rect_1.x -= 5
-            ground_rect_2.x -= 5
-            if ground_rect_1.right < 0:
-                ground_rect_1.left = ground_rect_2.right
-            if ground_rect_2.right < 0:
-                ground_rect_2.left = ground_rect_1.right
-            screen.blit(GROUND_SURF_1, ground_rect_1)
-            screen.blit(GROUND_SURF_2, ground_rect_2)
-
+            # --- SCROLLING KITCHEN BACKGROUND ---
+            kitchen_rect_1.x -= 2
+            kitchen_rect_2.x -= 2
+            
+            # If a background image goes completely off-screen, teleport it to the right of the other one
+            if kitchen_rect_1.right < 0:
+                kitchen_rect_1.left = kitchen_rect_2.right
+            if kitchen_rect_2.right < 0:
+                kitchen_rect_2.left = kitchen_rect_1.right
+                
+            # Draw the kitchen backgrounds
+            screen.blit(KITCHEN_SURF_1, kitchen_rect_1)
+            screen.blit(KITCHEN_SURF_2, kitchen_rect_2)
+            
             # Left/Right Movement
             keys = pygame.key.get_pressed()
             if keys[pygame.K_LEFT]:
